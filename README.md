@@ -17,7 +17,7 @@ After having finished the tutorial, you will have accomplished the following:
 
 ## Understanding the game setup
 
-Before beginning the tutorial, [try running the game](defold://build), then open ["main.collection"](defold://open?path=/main/main.collection) to see how the game is set up.
+Before beginning the tutorial, [try building and running the game](defold://build) <kbd>Project Menu ▸ Build</kbd>, then open ["main.collection"](defold://open?path=/main/main.collection) to see how the game is set up.
 
 <img src="doc/main_collection.png" srcset="doc/main_collection@2x.png 2x">
 
@@ -31,9 +31,9 @@ Now try some of the other levels:
 
 Open "main.collection".
 
-Mark "level" change its reference in the *Path* property to "/main/level_3/level_3.collection".
+Select "level" change its reference in the *Path* property to "/main/level_3/level_3.collection".
 
-Build and run the game again (<kbd>Project ▸ Build</kbd>). Do the same for levels 1 and 4.
+Build and run the game again (<kbd>Project Menu ▸ Build</kbd>). Do the same for levels 1 and 4.
 
 ## Loading collections via proxy
 
@@ -45,11 +45,11 @@ What is needed for this game is a way to make the level loading automatic and de
 
 For this game, proxies will be the best choice.
 
-Open "main.collection" and remove the "level" collection reference. Instead, add a new game object and give it id "loader".
+Open "main.collection" and remove the "level" collection reference. Instead, add a new game object <kbd>Right click *Collection* in the Outline window ▸ Add Game Object</kbd> and set its *Id* property to "loader" in the Properties window.
 
-Add a collection proxy component to the game object, name it "proxy_level_1" and set its *Collection* property to "/main/level_1/level_1.collection".
+Add a collection proxy component to the game object <kbd>Right click *loader* in the Outline window ▸ Add Component ▸ Collection Proxy</kbd>, set its *Id* property to "proxy_level_1" and set its *Collection* property to "/main/level_1/level_1.collection".
 
-Add a new script file called "loader.script" and add it as a script component to the "loader" game object.
+Add a new script file called "loader.script" <kbd>Right click *main* in the Assets window ▸ New ▸ Script</kbd> and add it as a script component to the "loader" game object <kbd>Right click *loader* in Outline ▸ Add Component File ▸ select *loader.script* from list</kbd>.
 
 NOTE: The Defold editor will automatically add `.script` to the filename you provide. Make sure to only type in `loader` as name in the New Script popup.
 
@@ -59,20 +59,21 @@ Open "loader.script" and change its content to the following:
 
 ```lua
 function init(self)
-    msg.post("#proxy_level_1", "load")                      -- [1]
+    -- Send a message to the proxy component telling it to start loading its collection
+    msg.post("#proxy_level_1", "load")
 end
 
 function on_message(self, message_id, message, sender)
-    if message_id == hash("proxy_loaded") then              -- [2]
+    -- When the proxy component is done loading, it sends a "proxy_loaded" message back
+    if message_id == hash("proxy_loaded") then
+        -- send "init" and "enable" messages to the collection to initialize and enable the collection content. We can send these messages back to "sender" which is the proxy component.
         msg.post(sender, "init")
         msg.post(sender, "enable")
     end
 end
 ```
-1. Send a message to the proxy component telling it to start loading its collection.
-2. When the proxy component is done loading, it sends a "proxy_loaded" message back. You can then send "init" and "enable" messages to the collection to initialize and enable the collection content. We can send these messages back to "sender" which is the proxy component.
 
-Now try to run the game.
+Now try to build and run the game.
 
 Unfortunately there is an instant error. The console says:
 
@@ -85,17 +86,17 @@ ERROR:GAMESYS: The collection /main/level_1/level_1.collectionc could not be loa
 
 This error occurs because the proxy tries to create a new world (socket) with the name "default". But a world with that name already exists - the one created from "main.collection" at engine boot. The socket name is set in the properties of the collection root so it's very easy to fix:
 
-Open the file "/main/level_1/level_1.collection", mark the root of the collection and set the *Name* property to "level_1". And, mark the level.go and set the *Id* property to "level_1". Save the file.
+Open the file "/main/level_1/level_1.collection", select the root node "Collection" in the Outline window and set the *Name* property to "level_1". Select the level.go script node in the Outline window and set the *Id* property to "level_1". Save the file.
 
 <img src="doc/socket_name.png" srcset="doc/socket_name@2x.png 2x">
 
-Try running the game again.
+Try building and running the game again.
 
 The level now shows up, but if you try to click on the board to move a tile, nothing happens. Why is that?
 
 The problem is that the script that deals with input is now inside the proxied world. The input system works like this: 
 
-* It sends input to all game objects in the bootstrap collection that has acquired input focus.
+* It sends input to all game objects in the bootstrap collection that have acquired input focus.
 * If one of these objects listening to input contains a proxy, input is directed to any object in the game world behind the proxy that has acquired input focus.
 
 So in order to get input into the proxied collection, the game object that contains the proxy component must listen to input.
@@ -104,19 +105,22 @@ Open "loader.script" and add a line to the `init()` function:
 
 ```
 function init(self)
+    -- Send a message to the proxy component telling it to start loading its collection
     msg.post("#proxy_level_1", "load")
-    msg.post(".", "acquire_input_focus")                -- [1]
+
+    -- Since this game object holds the proxy for the collection that needs input, this game object needs to acquire input focus too
+    msg.post(".", "acquire_input_focus")
 end
 ```
-1. Since this game object holds the proxy for the collection that needs input, this game object needs to acquire input focus too.
 
-Run the game again. Now everything should work as expected.
+Build and run the game again. Now everything should work as expected.
 
-Because the game contains four levels you need to add proxy components for the remaining three levels. Don't forget to change the *Id* property to a unique name for each level collection so the socket names don't collide when a proxy loads.
+Because the game contains four levels you need to add proxy components for the remaining three levels. <kbd>Right click *loader* in Outline ▸ Add Component ▸ Collection Proxy</kbd>, set the *Id* property to "proxy_level_N" 
+and set the *Collection* property to "/main/level_N/level_N.collection" where N is the level number. Open each level collection file from the Assets window and set the *Id* property to a unique name (e.g. use the pattern "level_N")  so the socket names don't collide when a proxy loads.
 
 <img src="doc/main_proxies.png" srcset="doc/main_proxies@2x.png 2x">
 
-Test that each level loads by altering the proxy component you send the "load" message:
+Test that each level loads by altering the proxy component you send the "load" message in "loader.script":
 
 * `msg.post("#proxy_level_1", "load")`
 * `msg.post("#proxy_level_2", "load")`
@@ -127,23 +131,23 @@ Test that each level loads by altering the proxy component you send the "load" m
 
 Now you have built the setup required to load any level at any moment so it is time to construct an interface to the level loading.
 
-Create a new GUI file and call it "level_select.gui".
+Create a new GUI file <kbd>Right click *main* in Assets ▸ New ▸ Gui</kbd> and name it "level_select.gui".
 
-Add the "headings" font to the *Font* section of the GUI (<kbd>right click</kbd> the *Fonts* item in the outline and select <kbd>Add ▸ Fonts...</kbd>).
+Add the "headings" font to the *Font* section of the GUI <kbd>Right click *Fonts* in Outline ▸ Add ▸ Fonts...</kbd>.
 
-Add the "bricks" atlas to the *Textures* section of the GUI (<kbd>right click</kbd> the *Textures* item in the outline and select <kbd>Add ▸ Textures...</kbd>).
+Add the "bricks" atlas to the *Textures* section of the GUI <kbd>Right click *Textures* in Outline ▸ Add ▸ Textures...</kbd>.
 
 Construct an interface with 4 buttons, one for each level. For each button:
 
-1. Create one root Box node (<kbd>right click</kbd> *Nodes* and select <kbd>Add ▸ Box</kbd>).
+1. Create one root Box node <kbd>Right click *Nodes* in Outline ▸ Add ▸ Box</kbd>.
 2. Set the *Id* to "level_1".
 3. Set the *Size Mode* to `Manual` and the *Size* to 100, 100, 0.
 4. Set the *Alpha* to `0` so the node will be invisible.
-5. Create a child Box node to "level_1" (<kbd>right click</kbd> "level_1" and select <kbd>Add ▸ Box</kbd>).
+5. Create a child Box node to "level_1" <kbd>Right click *level_1* ▸ Add ▸ Box</kbd>.
 6. Set the *Id* of the child node to "1_bg".
 7. Set the *Texture* of the node to `bricks/button`.
 8. Uncheck *Inherit Alpha* on the node so it renders even if its parent is transparent.
-9. Create a child Text node to "level_1" (<kbd>right click</kbd> "level_1" and select <kbd>Add ▸ Text</kbd>).
+9. Create a child Text node to "level_1" <kbd>Right click *level_1* ▸ Add ▸ Text</kbd>.
 10. Set the *Id* of the child node to "1_text".
 11. Set the *Text* of the node to "1".
 12. Set the *Font* of the node to `headings`.

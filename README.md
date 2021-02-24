@@ -131,7 +131,7 @@ Test that each level loads by altering the proxy component you send the "load" m
 
 Now you have built the setup required to load any level at any moment so it is time to construct an interface to the level loading.
 
-Create a new GUI file <kbd>Right click *main* in Assets ▸ New ▸ Gui</kbd> and name it "level_select.gui".
+Create a new GUI file <kbd>Right click *main* in Assets ▸ New ▸ Gui</kbd> and name it "level_select" (the ".gui" extension will be added automatically).
 
 Add the "headings" font to the *Font* section of the GUI <kbd>Right click *Fonts* in Outline ▸ Add ▸ Fonts...</kbd>.
 
@@ -157,29 +157,36 @@ If you change the size of your graphics make sure that each root node is big eno
 
 Repeat the above steps for all 4 level buttons and move each root node into position. Also add a text node header:
 
-1. Create one Text node (<kbd>right click</kbd> *Nodes* and select <kbd>Add ▸ Text</kbd>).
+1. Create one Text node <kbd>right click *Nodes* in Outline ▸ Add ▸ Text</kbd>.
 2. Set the *Id* to "select_header".
 3. Set the *Font* to "headings".
 4. Set the *Text* to "SELECT LEVEL".
 
 <img src="doc/level_select.png" srcset="doc/level_select@2x.png 2x">
 
-Create a new GUI script file and call it "level_select.gui_script".
+Create a new GUI script file <kbd>right click *main* in Outline ▸ New ▸ Gui Script</kbd> and call it "level_select.gui_script".
 
 Open "level_select.gui_script" and change the script to the following:
 
 ```lua
 function init(self)
     msg.post(".", "acquire_input_focus")
-    msg.post("#", "show_level_select")                                  -- [1]
+
+    -- Set up the GUI.
+    msg.post("#", "show_level_select")
     self.active = false
 end
 
 function on_message(self, message_id, message, sender)
-    if message_id == hash("show_level_select") then                     -- [2]
+    
+    if message_id == hash("show_level_select") then
+        
+        -- Showing and hiding the GUI is triggered via messaging so it can be done from other scripts.
         msg.post("#", "enable")
         self.active = true
-    elseif message_id == hash("hide_level_select") then                 -- [3]
+    elseif message_id == hash("hide_level_select") then
+        
+        -- React to the pressing of touch input (as already set up in the [input bindings](defold://open?path=/input/game.input_binding)).
         msg.post("#", "disable")
         self.active = false
     end
@@ -187,25 +194,26 @@ end
 
 function on_input(self, action_id, action)
     if action_id == hash("touch") and action.pressed and self.active then
-        for n = 1,4 do                                                  -- [4]
+        for n = 1,4 do
+            
+            -- The button nodes are named "level_1" to "level_4" so they can be looped over
             local node = gui.get_node("level_" .. n)
-            if gui.pick_node(node, action.x, action.y) then             -- [5]
-                msg.post("/loader#loader", "load_level", { level = n }) -- [6]
-                msg.post("#", "hide_level_select")                      -- [7]
+            
+            -- Check if the touch action happens within the boundaries of node "level_n". This means that the click happened on the button.
+            if gui.pick_node(node, action.x, action.y) then
+                
+                -- Send a message to the loader script to load level `n`. Notice that a "load" message is not sent directly to the proxy from here since this script does not deal with the rest of the proxy loading logic, as a reaction to "proxy_loaded".
+                msg.post("/loader#loader", "load_level", { level = n })
+
+                -- Hide this GUI.
+                msg.post("#", "hide_level_select")
             end
         end
     end
 end
 ```
-1. Set up the GUI.
-2. Showing and hiding the GUI is triggered via messaging so it can be done from other scripts.
-3. React to the pressing of touch input (as already set up in the [input bindings](defold://open?path=/input/game.input_binding)).
-4. The button nodes are named "level_1" to "level_4" so they can be looped over.
-5. Check if the touch action happens within the boundaries of node "level_n". This means that the click happened on the button.
-6. Send a message to the loader script to load level `n`. Notice that a "load" message is not sent directly to the proxy from here since this script does not deal with the rest of the proxy loading logic, as a reaction to "proxy_loaded".
-7. Hide this GUI.
 
-Open "level_select.gui" and set the *Script* property on the root node to the new script.
+Open "level_select.gui", select the top level node in *Outline* and set the *Script* property on the root node to the new script.
 
 <img src="doc/level_select_script.png" srcset="doc/level_select_script@2x.png 2x">
 
@@ -220,7 +228,9 @@ end
 
 function on_message(self, message_id, message, sender)
     if message_id == hash("load_level") then
-        local proxy = "#proxy_level_" .. message.level                  -- [1]
+
+        -- Construct which proxy to load based on message data.
+        local proxy = "#proxy_level_" .. message.level
         msg.post(proxy, "load")
     elseif message_id == hash("proxy_loaded") then
         msg.post(sender, "init")
@@ -228,25 +238,23 @@ function on_message(self, message_id, message, sender)
     end
 end
 ```
-1. Construct which proxy to load based on message data.
 
 Open "main.collection" and add a new game object with id "guis".
 
-Add "level_select.gui" as a GUI component to the new "guis" game object.
+Add "level_select.gui" as a GUI component to the new "guis" game object <kbd>right click *guis* in Outline ▸ Add Component File ▸ "level_select.gui"</kbd>.
 
-Run the game and test the level selector screen. You should be able to click any of the level buttons and the corresponding level will load and be playable.
+Build and run the game and test the level selector screen. You should be able to click any of the level buttons and the corresponding level will load and be playable.
 
 ## In game GUI
 
-You can now start and play a level but there is no way to go back. The next step is to add an in game GUI that allows you to navigate back to the level selection screen. It should also congratulate the player when the level is completed and allow moving directly to the next level:
-
+Ylevel
 Create a new GUI file and call it "level.gui".
 
 Add "headings" to the *Font* section and the "bricks" atlas to the *Textures* section of the GUI.
 
 Build one back-button at the top and one level number indicator at the top.
 
-Build a level complete message with a "well done" message and a "next"-button. Child these to a panel (a colored box node), call it "done" and place it outside of the view so they can be slide into view when the level is completed:
+Build a level complete message with a "well done" message and a "next"-button. Child these to a panel (a colored box node), call it "done" and place it outside of the view to the left or right so they can be slide into view when the level is completed:
 
 <img src="doc/level_gui.png" srcset="doc/level_gui@2x.png 2x">
 
@@ -256,31 +264,33 @@ Open "level.gui_script" and change the script to the following:
 
 ```lua
 function on_message(self, message_id, message, sender)
-    if message_id == hash("level_completed") then                       -- [1]
+    -- If message "level_complete" is received, slide the "done" panel with the "next" button into view.
+    if message_id == hash("level_completed") then
         local done = gui.get_node("done")
         gui.animate(done, "position.x", 320, gui.EASING_OUTSINE, 1, 1.5)
     end
 end
 
-function on_input(self, action_id, action)                              -- [2]
+function on_input(self, action_id, action)
+    -- This GUI will be put on the "level" game object which already acquires input focus (through  "level.script") so this script should not do that.
     if action_id == hash("touch") and action.pressed then
         local back = gui.get_node("back")
+        -- If the player presses "back"...
         if gui.pick_node(back, action.x, action.y) then
-            msg.post("default:/guis#level_select", "show_level_select")  -- [3]
+            -- Tell the level selector to show itself and the loader to unload the level. Note that the socket name of the bootstrap collection is used in the address.
+            msg.post("default:/guis#level_select", "show_level_select")
             msg.post("default:/loader#loader", "unload_level")
         end
 
         local next = gui.get_node("next")
+        -- If the player presses "next"...
         if gui.pick_node(next, action.x, action.y) then
-            msg.post("default:/loader#loader", "next_level")            -- [4]
+            -- tell the loader to load the next level.
+            msg.post("default:/loader#loader", "next_level")
         end
     end
 end
 ```
-1. If message "level_complete" is received, slide the "done" panel with the "next" button into view.
-2. This GUI will be put on the "level" game object which already acquires input focus (through  "level.script") so this script should not do that.
-3. If the player presses "back", tell the level selector to show itself and the loader to unload the level. Note that the socket name of the bootstrap collection is used in the address.
-4. If the player presses "next", tell the loader to load the next level.
 
 Open "level.gui" and set the *Script* property on the root node to the new script.
 
@@ -289,7 +299,8 @@ Open "loader.script" and change it to the following:
 ```lua
 function init(self)
     msg.post(".", "acquire_input_focus")
-    self.current_level = 0                                              -- [1]
+    -- Keep track of the currently loaded level so it can be unloaded and it is possible to advance to the next one.
+    self.current_level = 0
 end
 
 function on_message(self, message_id, message, sender)
@@ -297,10 +308,12 @@ function on_message(self, message_id, message, sender)
         self.current_level = message.level
         local proxy = "#proxy_level_" .. self.current_level
         msg.post(proxy, "load")
-    elseif message_id == hash("next_level") then                        -- [2]
+    elseif message_id == hash("next_level") then
+        -- Load next level. Note that there is no check if there actually exists a next level.
         msg.post("#", "unload_level")
         msg.post("#", "load_level", { level = self.current_level + 1 })
-    elseif message_id == hash("unload_level") then                      -- [3]
+    elseif message_id == hash("unload_level") then
+        -- Unload the currently loaded level.
         local proxy = "#proxy_level_" .. self.current_level
         msg.post(proxy, "disable")
         msg.post(proxy, "final")
@@ -311,9 +324,6 @@ function on_message(self, message_id, message, sender)
     end
 end
 ```
-1. Keep track of the currently loaded level so it can be unloaded and it is possible to advance to the next one.
-2. Load next level. Note that there is no check if there actually exists a next level.
-3. Unload the currently loaded level.
 
 Open "level.script" and add a message to the level gui when the game is finished at the end of `on_input()`:
 
@@ -321,13 +331,13 @@ Open "level.script" and add a message to the level gui when the game is finished
                 ...
                 -- check if the board is solved
                 if all_correct(self.bricks) then
-                    msg.post("#gui", "level_completed")                 -- [1]
+                    -- Tell the GUI to show the level completed panel.
+                    msg.post("#gui", "level_completed")
                     self.completed = true
                 end
             end
             ...
 ```
-1. Tell the GUI to show the level completed panel.
 
 Finally, open "level.go" and add "level.gui" as a GUI component to the game object. Make sure to set the *Id* property of the component to "gui".
 
@@ -351,12 +361,14 @@ Open "start.gui_script" and change the script to the following:
 
 ```lua
 function init(self)
-    msg.post("#", "show_start")                                         -- [1]
+    -- Start by showing this screen.
+    msg.post("#", "show_start")
     self.active = false
 end
 
 function on_message(self, message_id, message, sender)
-    if message_id == hash("show_start") then                            -- [2]
+    -- Messages to show and hide this screen.
+    if message_id == hash("show_start") then
         msg.post("#", "enable")
         self.active = true
     elseif message_id == hash("hide_start") then
@@ -368,16 +380,15 @@ end
 function on_input(self, action_id, action)
     if action_id == hash("touch") and action.pressed and self.active then
         local start = gui.get_node("start")
-        if gui.pick_node(start, action.x, action.y) then                -- [3]
+        -- If the player presses the "start" button...
+        if gui.pick_node(start, action.x, action.y) then 
+            -- Hide this screen and tell the level selection GUI to show itself.
             msg.post("#", "hide_start")
             msg.post("#level_select", "show_level_select")
         end
     end
 end
 ```
-1. Start by showing this screen.
-2. Messages to show and hide this screen.
-3. If the player presses the "start" button, hide this screen and tell the level selection GUI to show itself.
 
 Open "start.gui" and set the *Script* property on the root node to the new script.
 
@@ -400,26 +411,27 @@ function on_input(self, action_id, action)
             end
         end
 
-        local back = gui.get_node("back")                               -- [1]
+        local back = gui.get_node("back")
+        -- If the player clicks "back"...
         if gui.pick_node(back, action.x, action.y) then
+            -- Hide this GUI and show the start screen.
             msg.post("#level_select", "hide_level_select")
             msg.post("#start", "show_start")
         end
     end
 end
 ```
-1. Check if the player clicks "back". If so, hide this GUI and show the start screen.
 
 Also edit the `init()` function so the level select GUI is hidden on startup.
 
 ```
 function init(self)
     msg.post(".", "acquire_input_focus")
-    msg.post("#", "hide_level_select")                                  -- [1]
+    -- Hide the GUI on startup
+    msg.post("#", "hide_level_select")
     self.active = false
 end
 ```
-1. Hide the GUI on startup
 
 And that's it. You are done! Run the game and verify that everything works as expected.
 
